@@ -69,6 +69,12 @@ app.post("/register", function(req, res) {
 	var username = req.body.user;
 	var pass     = req.body.password;
 	var email    = req.body.email;
+	
+	if(username === undefined || pass === undefined || email === undefined){
+		res.status(400).send({error: "Need username, password, and email"});
+		return;
+	}
+	
 	db.find("users", {"$or": [{username: username}, {email: email}] }).then(function(doc) {
 		if (doc && doc[0]) {
 			res.status(403)
@@ -97,6 +103,12 @@ app.post("/register", function(req, res) {
 app.post("/login", function(req, res) {
 	var username = req.body.user;
 	var pass     = req.body.password;
+	
+	if(username === undefined || pass === undefined){
+		res.status(400).send({error: "Need username and password"});
+		return;
+	}
+	
 	db.find("users", {username: username, password: hash(pass)}).then(function(doc) {
 		if (!doc || !doc[0]) {
 			res.status(401)
