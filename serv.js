@@ -123,7 +123,6 @@ app.post("/user", function(req, res){
 });
 
 app.get("/restaurants", function(req, res){
-<<<<<<< HEAD
 	var lat = parseFloat(req.query.lat);
 	var lon = parseFloat(req.query.lon);
 
