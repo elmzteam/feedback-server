@@ -23,7 +23,7 @@ var geolib			= require("geolib");
 var Yelp			= require("yelp");
 var instagram		= require("instagram-node").instagram();
 var Locu			= require("./locu");
-var yummly			= require("yummly");
+var yummly			= require("./yummly");
 
 // Local imports
 var logger			= require("./logger");
@@ -295,6 +295,8 @@ app.get("/restaurants", function(req, res){
 				var menus = data[2]
 				data = data[0];
 
+				var all = []
+
 				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 					data[i].menu = null;
@@ -303,23 +305,28 @@ app.get("/restaurants", function(req, res){
 					for(var j = 0; j < menus.length; j++){
 						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40){
 							
-							(function(data, i) {
-								insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
+							all.push((function(data, i) {
+								return insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
 									data[i].menu = ids ;//menus[j].menus[0];
-									console.log(data[i])
-									return data[i];
+									return Promise.resolve(data[i]);
 								}).then(function(obj) {
-									cache(obj)
+									return cache(obj).then(function() {
+										return Promise.resolve(data[i])
+									})
 								}).catch(function(err) {
 									logger.error(err.stack)
 								})
-							})(data, i)
+							})(data, i))
 							added = true
 							break;
 						}
 					}
 					if (!added) {
-						cache(data[i])
+						all.push((function(data, i) {
+							return cache(data[i]).then(function() {
+								return Promise.resolve(data[i])
+							})
+						})(data,i))
 					}
 				}
 
@@ -330,8 +337,9 @@ app.get("/restaurants", function(req, res){
 						coordinates: [lon, lat]
 					}
 				});
-
-				res.status(200).send(data);	
+				Promise.all(all).then(function(dati) {
+					res.status(200).send(dati);	
+				})
 			})
 		}
 	}).catch(function(err){
@@ -372,7 +380,7 @@ app.put("/rating", function(req, res){
 
 var insertMenu = function(rest, menu) {
 	if (!menu) {
-		return Promise.resolve([])
+		return Promise.resolve(null)
 	}
 	var out = []
 	for (var s = 0; s < menu.sections.length; s++) {
@@ -383,13 +391,27 @@ var insertMenu = function(rest, menu) {
 				var cont = subsec.contents[c]
 				if (cont.type == "ITEM") {
 					out.push((function (cont) {
-						return db.update("items", {name: cont.name}, {
-							$set: {name: cont.name},
-							$addToSet: {description: {
-								$each: csvSplit(cont.description)
-							}}
-						}, {upsert: true}).then(function() {
-							return fetchID("items", {name: cont.name})
+						return addItem(cont.name).then(function(data) {
+							return db.findOne("items", {name: cont.name}).then(function (doc){
+								if (doc) {
+									return db.update("items", {name: cont.name}, {
+										$set: {ingredients: data.ingredients, tastes: data.tastes},
+										$addToSet: {description: {
+											$each: csvSplit(cont.description)
+										}}
+									})
+								}
+								return db.insert("items", {
+									name: cont.name,
+									ingredients: data.ingredients,
+									tastes: data.tastes,
+									description: csvSplit(cont.description)
+								})
+							}).then(function() {
+								return fetchID("items", {name: cont.name})
+							}).catch(function(err) {
+								logger.error(err)
+							})
 						})
 					})(cont))
 				}
@@ -491,7 +513,7 @@ var addItem = function(itemName){
 			bitter: 0,
 			salty: 0
 		};
-		var tastesCnt = 0;
+		var tastesCnt = 1;
 		var tasteMapping = {
 			savory: "savory",
 			spicy: "spicy",
@@ -527,11 +549,10 @@ var addItem = function(itemName){
 			tastes[taste] /= tastesCnt;
 		}
 
-		return {
-			name: itemName,
+		return Promise.resolve({
 			tastes: tastes,
 			ingredients: ingredients
-		}
+		})
 	});
 }
 
