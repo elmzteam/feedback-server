@@ -112,6 +112,23 @@ app.post("/login", function(req, res) {
 	})
 })
 
+app.use(function(req, res, next) {
+	var user = req.headers.user
+	var session = req.headers.session
+	verify(session, user).then(function() {
+		next()
+	}).catch(function(err) {
+		if (err) {
+			res.status(500)
+			res.send({error: "Well shoot"})
+			logger.error(err)
+		} else {
+			res.status(401)
+			res.send({error: "Unauthorized"})
+		}
+	})
+})
+
 app.get("/user", function(req, res){
 	// todo
 	res.status(200).send();
@@ -127,12 +144,12 @@ app.get("/restaurants", function(req, res){
 	var lon = parseFloat(req.query.lon);
 
 	if(lat === undefined || lon === undefined){
-		res.status(400).send();
+		res.status(400).send({error: "No location given"});
 		return;
 	}
 	
 	if(!yelp || !igSearch){
-		rest.status(500).send();
+		res.status(500).send({error: "Not Configured"});
 		return;
 	}
 
@@ -193,7 +210,7 @@ app.get("/restaurants", function(req, res){
 		}
 		res.status(200).send(data);	
 	}).catch(function(err){
-		console.log(err);
+		logger.error(err)
 		res.status(500).send();
 	})
 });
