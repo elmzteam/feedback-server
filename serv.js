@@ -26,6 +26,8 @@ var instagram		= require("instagram-node").instagram();
 var logger			= require("./logger");
 var db				= require("./db");
 db.raw.restaurants.createIndex({location: "2dsphere"})
+db.raw.queries.createIndex({location: "2dsphere"})
+db.raw.queries.createIndex({timestamp: 1}, {expireAfterSeconds: 300000})
 
 if(DEBUG){
 	logger.warn("Using debug mode.");
@@ -156,66 +158,101 @@ app.get("/restaurants", function(req, res){
 
 	// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
 	
-	var yelpData = yelp.search({
-		term: "food",
-		ll: lat + "," + lon,
-		limit: 20,
-		sort: 1
-	}).then(function(data){
-		return data.businesses.map(function(el){
-			return {
-				name: el.name,
-				distance: el.distance,
-				categories: el.categories.map(function(cat){
-					return cat[0];
-				}).join(", "),
-				address: el.location.address[0],
-				location: el.location.coordinate
-			};
-		});
-	});
-	
-	var igData = yelpData.then(function(data){
-		return Promise.all(data.map(function(el){
-			return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
-		}));
-	}).then(function(data){
-		return data.map(function(el){
-			return el.map(function(photo){
-				if(photo.type != "image"){
-					return null;
-				}
-				var matched = false;
-				for(var i = 0; i < photo.tags.length; i++){
-					if(photo.tags[i].includes("food")){
-						matched = true;
-						break;
-					}
-				}
-				return matched ? photo : null;
-			}).reduce(function(acc, el){
-				if(el != null){
-					acc.push(el.link);
-				}
-				return acc;
-			}, []);
-		});
-	});
-	
-	Promise.all([yelpData, igData]).then(function(data){
-		var images = data[1];
-		data = data[0];
-		// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
-		for(var i = 0; i < data.length; i++){
-			data[i].images = (images[i] ? images[i].slice(0, 6) : []);
-			cache(data[i])
+	var query = {location:
+		{"$near" : {
+			"$geometry" : {
+				"type" : "Point",
+				"coordinates" : [
+					lon,
+					lat
+				]
+			},
+			"$maxDistance" : 2000,
+			"$minDistance" : 0
 		}
-		res.status(200).send(data);	
+	}}
+
+	db.findOne("queries", query).then(function(doc) {
+		if (doc) {
+			query["$near"]["$maxDistance"] = 10000
+			return db.restaurants.find(query).then(function(result) {
+				if (result) {
+					res.status(200)
+					res.send(result)
+				}
+			})
+		}
+		if (!doc) {
+			var yelpData = yelp.search({
+				term: "food",
+				ll: lat + "," + lon,
+				limit: 20,
+				sort: 1
+			}).then(function(data){
+				return data.businesses.map(function(el){
+					return {
+						name: el.name,
+						distance: el.distance,
+						categories: el.categories.map(function(cat){
+							return cat[0];
+						}).join(", "),
+						address: el.location.address[0],
+						location: el.location.coordinate
+					};
+				});
+			});
+			
+			var igData = yelpData.then(function(data){
+				return Promise.all(data.map(function(el){
+					return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
+				}));
+			}).then(function(data){
+				return data.map(function(el){
+					return el.map(function(photo){
+						if(photo.type != "image"){
+							return null;
+						}
+						var matched = false;
+						for(var i = 0; i < photo.tags.length; i++){
+							if(photo.tags[i].includes("food")){
+								matched = true;
+								break;
+							}
+						}
+						return matched ? photo : null;
+					}).reduce(function(acc, el){
+						if(el != null){
+							acc.push(el.link);
+						}
+						return acc;
+					}, []);
+				})
+			});
+	
+			return Promise.all([yelpData, igData]).then(function(data){
+				var images = data[1];
+				data = data[0];
+				// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
+				for(var i = 0; i < data.length; i++){
+					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
+					cache(data[i])
+				}
+				db.insert("queries", {
+					timestamp: Date.now(), 
+					location: {
+						type: "Point",
+						coordinates: [lon, lat]
+					}
+				})
+				res.status(200).send(data);	
+			})
+		}
 	}).catch(function(err){
 		logger.error(err)
 		console.log(err)
 		res.status(500).send({error: "Hehe, my b"});
 	})
+
 });
 
 app.get("/items", function(req, res){
@@ -249,10 +286,10 @@ app.put("/rating", function(req, res){
 var cache = function(rest) {
 	var temp = rest
 	temp.location = {
-		type: "point",
-		coordinate: [
+		type: "Point",
+		coordinates: [
+			rest.location.longitude,
 			rest.location.latitude,
-			rest.location.longitude
 		]
 	}
 	return db.findOne("restaurants", {name: temp.name, location: temp.location}).then(function(doc) {

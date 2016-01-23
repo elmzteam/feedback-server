@@ -2,7 +2,7 @@
 
 var mongo = require("mongod");
 var dbPath = "mongodb://localhost:27017/feedback";
-var db = mongo.connect(dbPath, ["users", "restaurants", "items", "sessions"]);
+var db = mongo.connect(dbPath, ["users", "restaurants", "items", "sessions", "queries"]);
 var ObjectId = mongo.ObjectId;
 var Promise = require("promise");
 var logger = require("./logger");
