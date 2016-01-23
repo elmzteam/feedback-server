@@ -17,6 +17,7 @@ var app				= express();
 
 // Node imports
 var crypto			= require("crypto");
+var geolib			= require("geolib");
 
 // API imports
 var Yelp			= require("yelp");
@@ -26,6 +27,7 @@ var Locu			= require("./locu");
 // Local imports
 var logger			= require("./logger");
 var db				= require("./db");
+
 db.raw.restaurants.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({timestamp: 1}, {expireAfterSeconds: 300000})
@@ -69,12 +71,12 @@ app.post("/register", function(req, res) {
 	var username = req.body.user;
 	var pass     = req.body.password;
 	var email    = req.body.email;
-	
+
 	if(username === undefined || pass === undefined || email === undefined){
 		res.status(400).send({error: "Need username, password, and email"});
 		return;
 	}
-	
+
 	db.find("users", {"$or": [{username: username}, {email: email}] }).then(function(doc) {
 		if (doc && doc[0]) {
 			res.status(403)
@@ -103,12 +105,12 @@ app.post("/register", function(req, res) {
 app.post("/login", function(req, res) {
 	var username = req.body.user;
 	var pass     = req.body.password;
-	
+
 	if(username === undefined || pass === undefined){
 		res.status(400).send({error: "Need username and password"});
 		return;
 	}
-	
+
 	db.find("users", {username: username, password: hash(pass)}).then(function(doc) {
 		if (!doc || !doc[0]) {
 			res.status(401)
@@ -175,25 +177,26 @@ app.get("/restaurants", function(req, res){
 		return;
 	}
 
-	// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
-	var query = {location:
-		{"$near" : {
-			"$geometry" : {
-				"type" : "Point",
-				"coordinates" : [
-					lon,
-					lat
-				]
-			},
-			"$maxDistance" : 2000,
-			"$minDistance" : 0
+	var query = {
+		location: {
+			"$near" : {
+				"$geometry" : {
+					"type" : "Point",
+					"coordinates" : [
+						lon,
+						lat
+					]
+				},
+				"$maxDistance" : 2000,
+				"$minDistance" : 0
+			}
 		}
-	}}
+	}
 
 	db.findOne("queries", query).then(function(doc) {
 		if (doc) {
-			query["$near"]["$maxDistance"] = 10000
-			return db.restaurants.find(query).then(function(result) {
+			query["location"]["$near"]["$maxDistance"] = 10000;
+			return db.find("restaurants", query).then(function(result) {
 				if (result) {
 					res.status(200)
 					res.send(result)
@@ -219,7 +222,28 @@ app.get("/restaurants", function(req, res){
 					};
 				});
 			});
-			
+
+			var locuData = yelpData.then(function(data){
+				return locuSearch({
+					fields: ["name", "menus", "location"],
+					venue_queries: [
+						{
+							location: {
+								geo: {
+									"$in_lat_lng_radius": [lat, lon, data[data.length-1].distance + 50]
+								}
+							},
+							menus: {
+								"$present": true
+							},
+
+						}
+					]
+				});
+			}).then(function(data){
+				return data.venues;
+			});
+
 			var igData = yelpData.then(function(data){
 				return Promise.all(data.map(function(el){
 					return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
@@ -247,54 +271,33 @@ app.get("/restaurants", function(req, res){
 				})
 			});
 
-			var locuData = yelpData.then(function(data){
-				return Promise.all(data.map(function(el){
-					var ret = locuSearch({
-						fields: ["name", "menus"],
-						venue_queries: [
-							{
-								location: {
-									geo: {
-										"$in_lat_lng_radius" : [el.location.latitude, el.location.longitude, 5000]
-									}
-								},
-								name: el.name,
-								menus: {
-									"$present": true
-								}
-							}
-						]
-					});
-					ret.catch(function(err){
-						console.log(err);
-					});
-					return ret;
-				}));
-			}).then(function(data){
-				console.log(data)
-				return data.map(function(el){
-					return el.venues.length > 0 ? el.venues[0].menus[0] : null;
-				});
-			});
-
-	
 			return Promise.all([yelpData, igData, locuData]).then(function(data){
 				var images = data[1];
 				var menus = data[2]
 				data = data[0];
-				// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
+
 				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
-					data[i].menu = menus[i];
-					cache(data[i])
+					data[i].menu = null;
+
+					for(var j = 0; j < menus.length; j++){
+						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40){
+							data[i].menu = menus[j].menus[0];
+							break;
+						}
+					}
+
+					cache(data[i]);
 				}
+
 				db.insert("queries", {
 					timestamp: Date.now(), 
 					location: {
 						type: "Point",
 						coordinates: [lon, lat]
 					}
-				})
+				});
+
 				res.status(200).send(data);	
 			})
 		}
