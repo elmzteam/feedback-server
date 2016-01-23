@@ -26,6 +26,8 @@
     "morgan": "^1.6.1",
     "nconf": "^0.8.2",
     "promise": "^7.1.1",
+    "querystring": "^0.2.0",
+    "request": "^2.67.0",
     "yelp": "^1.0.1"
   }
 }
