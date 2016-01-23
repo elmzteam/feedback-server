@@ -21,6 +21,7 @@ var crypto			= require("crypto");
 // API imports
 var Yelp			= require("yelp");
 var instagram		= require("instagram-node").instagram();
+var Locu			= require("./locu");
 
 // Local imports
 var logger			= require("./logger");
@@ -45,12 +46,18 @@ if(nconf.get("YELP_CONSUMER_KEY") && nconf.get("YELP_CONSUMER_SECRET") && nconf.
 	logger.warn("Yelp credentials missing or incomplete.  Will not be able to pull Yelp data.");
 }
 
-
 if(nconf.get("INSTAGRAM_ACCESS_TOKEN")){
 	instagram.use({access_token: nconf.get("INSTAGRAM_ACCESS_TOKEN")});
 	var igSearch = Promise.denodeify(instagram.media_search);
 } else {
 	logger.warn("Instagram credentials missing or incomplete.  Will not be able to pull Instagram data.");
+}
+
+if(nconf.get("LOCU_API_KEY")){
+	var locu = new Locu.VenueClient(nconf.get("LOCU_API_KEY"));
+	var locuSearch = Promise.denodeify(locu.search).bind(locu);
+} else {
+	logger.warn("Locu credentials missing or incomplete.  Will not be able to pull Locu data.");
 }
 
 app.use(require("body-parser").json());
@@ -150,14 +157,13 @@ app.get("/restaurants", function(req, res){
 		res.status(400).send({error: "No location given"});
 		return;
 	}
-	
+
 	if(!yelp || !igSearch){
 		res.status(500).send({error: "Not Configured"});
 		return;
 	}
 
 	// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
-	
 	var query = {location:
 		{"$near" : {
 			"$geometry" : {
@@ -228,13 +234,46 @@ app.get("/restaurants", function(req, res){
 					}, []);
 				})
 			});
+
+			var locuData = yelpData.then(function(data){
+				return Promise.all(data.map(function(el){
+					var ret = locuSearch({
+						fields: ["name", "menus"],
+						venue_queries: [
+							{
+								location: {
+									geo: {
+										"$in_lat_lng_radius" : [el.location.latitude, el.location.longitude, 5000]
+									}
+								},
+								name: el.name,
+								menus: {
+									"$present": true
+								}
+							}
+						]
+					});
+					ret.catch(function(err){
+						console.log(err);
+					});
+					return ret;
+				}));
+			}).then(function(data){
+				console.log(data)
+				return data.map(function(el){
+					return el.venues.length > 0 ? el.venues[0].menus[0] : null;
+				});
+			});
+
 	
-			return Promise.all([yelpData, igData]).then(function(data){
+			return Promise.all([yelpData, igData, locuData]).then(function(data){
 				var images = data[1];
+				var menus = data[2]
 				data = data[0];
 				// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
-				for(var i = 0; i < data.length; i++){
+				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
+					data[i].menu = menus[i];
 					cache(data[i])
 				}
 				db.insert("queries", {
@@ -248,9 +287,9 @@ app.get("/restaurants", function(req, res){
 			})
 		}
 	}).catch(function(err){
-		logger.error(err)
-		console.log(err)
-		res.status(500).send({error: "Hehe, my b"});
+		logger.error(err);
+		logger.error(err.stack);
+		res.status(500).send({error: "lolwut"});
 	})
 
 });
@@ -328,7 +367,7 @@ var random = function() {
 		crypto.randomBytes(32, function(err, buf) {
 			if (err) reject(err)
 			else resolve(buf.toString("hex"))
-		})
+				})
 	})
 }
 
