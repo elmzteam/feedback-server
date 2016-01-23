@@ -114,44 +114,54 @@ app.post("/user", function(req, res){
 });
 
 app.get("/restaurants", function(req, res){
-	var lat = req.query.lat;
-	var lon = req.query.lon;
-
-	if(lat === undefined || lon === undefined){
-		res.status(400).send();
-		return;
-	}
 	
-	if(!yelp){
-		rest.status(500).send();
-		return;
-	}
+	var session = req.headers.session
+	var user    = req.headers.user
 
-	// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
-	
-	yelp.search({
-		term: "food",
-		ll: lat + "," + lon,
-		limit: 20,
-		sort: 1
-	}).then(function(data){
-		return data.businesses.map(function(el){
-			return {
-				name: el.name,
-				distance: el.distance,
-				categories: el.categories.map(function(cat){
-					return cat[0];
-				}).join(", "),
-				address: el.location.address[0],
-				location: el.location.coordinate
-			}
-		});
-	}).then(function(data){
-		// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
-		res.status(200).send(data);	
-	}).catch(function(err){
-		console.log(err);
-		res.status(500).send();
+	verify(session, user).then(function() {
+
+		var lat = req.query.lat;
+		var lon = req.query.lon;
+
+		if(lat === undefined || lon === undefined){
+			res.status(400).send();
+			return;
+		}
+		
+		if(!yelp){
+			rest.status(500).send();
+			return;
+		}
+
+		// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
+		
+		return yelp.search({
+			term: "food",
+			ll: lat + "," + lon,
+			limit: 20,
+			sort: 1
+		}).then(function(data){
+			return data.businesses.map(function(el){
+				return {
+					name: el.name,
+					distance: el.distance,
+					categories: el.categories.map(function(cat){
+						return cat[0];
+					}).join(", "),
+					address: el.location.address[0],
+					location: el.location.coordinate
+				}
+			});
+		}).then(function(data){
+			// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
+			res.status(200).send(data);	
+		}).catch(function(err){
+			logger.error(err)
+			res.status(500).send({error: "We goofed"});
+		})
+	}).catch(function() {
+		res.status(401)
+		res.send({error: "Not authorized"})
 	})
 });
 
@@ -184,11 +194,11 @@ app.put("/rating", function(req, res){
 // Helper Function
 
 var verify = function(session, user) {
-	return db.find("sessions", {session: session}).then(function(docs) {
-		if (!docs || !docs[0]) {
+	return db.findOne("sessions", {session: session}).then(function(docs) {
+		if (!docs) {
 			return Promise.reject()
 		}
-		return db.find("users", {_id: docs[0].user}).then(function(docs) {
+		return db.findOne("users", {_id: docs.user}).then(function(docs) {
 			if (docs.username === user) {
 				return Promise.resolve()
 			} else {
