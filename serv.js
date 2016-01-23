@@ -22,6 +22,7 @@ var crypto			= require("crypto");
 
 // API imports
 var Yelp			= require("yelp");
+var instagram		= require("instagram-node").instagram();
 
 // Local imports
 var logger			= require("./logger");
@@ -43,6 +44,13 @@ if(nconf.get("YELP_CONSUMER_KEY") && nconf.get("YELP_CONSUMER_SECRET") && nconf.
 	logger.warn("Yelp credentials missing or incomplete.  Will not be able to pull Yelp data.");
 }
 
+if(nconf.get("INSTAGRAM_ACCESS_TOKEN")){
+	instagram.use({access_token: nconf.get("INSTAGRAM_ACCESS_TOKEN")});
+	var igSearch = Promise.denodeify(instagram.media_search);
+} else {
+	logger.warn("Instagram credentials missing or incomplete.  Will not be able to pull Instagram data.");
+}
+
 // API methods
 
 app.get("/user", function(req, res){
@@ -56,22 +64,22 @@ app.post("/user", function(req, res){
 });
 
 app.get("/restaurants", function(req, res){
-	var lat = req.query.lat;
-	var lon = req.query.lon;
+	var lat = parseFloat(req.query.lat);
+	var lon = parseFloat(req.query.lon);
 
 	if(lat === undefined || lon === undefined){
 		res.status(400).send();
 		return;
 	}
 	
-	if(!yelp){
+	if(!yelp || !igSearch){
 		rest.status(500).send();
 		return;
 	}
 
 	// todo: check if you *actually* need to query yelp, query more than 20 locations from yelp, cache results
 	
-	yelp.search({
+	var yelpData = yelp.search({
 		term: "food",
 		ll: lat + "," + lon,
 		limit: 20,
@@ -86,10 +94,44 @@ app.get("/restaurants", function(req, res){
 				}).join(", "),
 				address: el.location.address[0],
 				location: el.location.coordinate
-			}
+			};
 		});
+	});
+	
+	var igData = yelpData.then(function(data){
+		return Promise.all(data.map(function(el){
+			return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
+		}));
 	}).then(function(data){
+		return data.map(function(el){
+			return el.map(function(photo){
+				if(photo.type != "image"){
+					return null;
+				}
+				var matched = false;
+				for(var i = 0; i < photo.tags.length; i++){
+					if(photo.tags[i].includes("food")){
+						matched = true;
+						break;
+					}
+				}
+				return matched ? photo : null;
+			}).reduce(function(acc, el){
+				if(el != null){
+					acc.push(el.link);
+				}
+				return acc;
+			}, []);
+		});
+	});
+	
+	Promise.all([yelpData, igData]).then(function(data){
+		var images = data[1];
+		data = data[0];
 		// you'll want to cache all of the grabbed restaurants here; searching by 'location' (lat/lon) would be the most applicable
+		for(var i = 0; i < data.length; i++){
+			data[i].images = (images[i] ? images[i].slice(0, 6) : []);
+		}
 		res.status(200).send(data);	
 	}).catch(function(err){
 		console.log(err);
