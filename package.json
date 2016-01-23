@@ -1,0 +1,29 @@
+{
+  "name": "feedback-server",
+  "version": "0.0.0",
+  "description": "",
+  "main": "serv.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elmzteam/feedback-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/elmzteam/feedback-server/issues"
+  },
+  "homepage": "https://github.com/elmzteam/feedback-server#readme",
+  "dependencies": {
+    "body-parser": "^1.14.2",
+    "colors": "^1.1.2",
+    "crypto": "0.0.3",
+    "express": "^4.13.4",
+    "mongod": "^1.3.0",
+    "morgan": "^1.6.1",
+    "nconf": "^0.8.2",
+    "promise": "^7.1.1"
+  }
+}
