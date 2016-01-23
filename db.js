@@ -71,8 +71,8 @@ var insert = function(collection, data){
  * @param {object} data The updates to perform on the selected records (formatted mongo-style)
  * @returns {Promise}
  */
-var update = function(collection, query, data){
-	return db[collection].update(query, data).then(pass);
+var update = function(collection, query, data, options){
+	return db[collection].update(query, data, options).then(pass);
 };
 
 /**

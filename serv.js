@@ -280,14 +280,28 @@ app.get("/restaurants", function(req, res){
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 					data[i].menu = null;
 
+					var added = false
 					for(var j = 0; j < menus.length; j++){
 						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40){
-							data[i].menu = menus[j].menus[0];
+							
+							(function(data, i) {
+								insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
+									data[i].menu = ids ;//menus[j].menus[0];
+									console.log(data[i])
+									return data[i];
+								}).then(function(obj) {
+									cache(obj)
+								}).catch(function(err) {
+									logger.error(err.stack)
+								})
+							})(data, i)
+							added = true
 							break;
 						}
 					}
-
-					cache(data[i]);
+					if (!added) {
+						cache(data[i])
+					}
 				}
 
 				db.insert("queries", {
@@ -336,6 +350,58 @@ app.put("/rating", function(req, res){
 })
 
 // Helper Functions
+
+var insertMenu = function(rest, menu) {
+	if (!menu) {
+		return Promise.resolve([])
+	}
+	var out = []
+	for (var s = 0; s < menu.sections.length; s++) {
+		var sec = menu.sections[s]
+		for (var ss = 0; ss < sec.subsections.length; ss++) {
+			var subsec = sec.subsections[ss]
+			for (var c = 0; c < subsec.contents.length; c++) {
+				var cont = subsec.contents[c]
+				if (cont.type == "ITEM") {
+					out.push((function (cont) {
+						return db.update("items", {name: cont.name}, {
+							$set: {name: cont.name},
+							$addToSet: {description: {
+								$each: csvSplit(cont.description)
+							}}
+						}, {upsert: true}).then(function() {
+							return fetchID("items", {name: cont.name})
+						})
+					})(cont))
+				}
+			}
+		}
+	}
+	return Promise.all(out);
+}
+
+var fetchID = function(coll, query) {
+	return db.findOne(coll, query).then(function(doc) {
+		if (!doc) {
+			return Promise.resolve(null)
+		}
+		return Promise.resolve(doc._id)
+	})
+}
+
+var csvSplit = function(str) {
+	return regexGroup(/[ \t\n]*([^,]*),/g, str, 1)
+}
+
+var regexGroup = function(regex, string, choice) {
+	var out = []
+	var match = regex.exec(string)
+	while (match != null) {
+		out.push(match[choice])
+		match = regex.exec(string)
+	}
+	return out;
+}
 
 var cache = function(rest) {
 	var temp = rest
