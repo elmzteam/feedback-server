@@ -26,6 +26,7 @@ var Locu			= require("./locu");
 // Local imports
 var logger			= require("./logger");
 var db				= require("./db");
+db.raw.restaurants.createIndex({location: "2dsphere"})
 
 if(DEBUG){
 	logger.warn("Using debug mode.");
@@ -150,7 +151,7 @@ app.get("/restaurants", function(req, res){
 	var lat = parseFloat(req.query.lat);
 	var lon = parseFloat(req.query.lon);
 
-	if(lat === undefined || lon === undefined){
+	if(isNaN(lat) || isNaN(lon)){
 		res.status(400).send({error: "No location given"});
 		return;
 	}
@@ -241,12 +242,13 @@ app.get("/restaurants", function(req, res){
 		for(var i = 0; i < data.length; i++){
 			data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 			data[i].menu = menus[i];
+			cache(data[i]);
 		}
 		res.status(200).send(data);	
 	}).catch(function(err){
 		logger.error(err);
 		logger.error(err.stack);
-		res.status(500).send();
+		res.status(500).send({error: "lolwut"});
 	})
 });
 
@@ -277,6 +279,25 @@ app.put("/rating", function(req, res){
 })
 
 // Helper Functions
+
+var cache = function(rest) {
+	var temp = rest
+	temp.location = {
+		type: "point",
+		coordinate: [
+			rest.location.latitude,
+			rest.location.longitude
+		]
+	}
+	return db.findOne("restaurants", {name: temp.name, location: temp.location}).then(function(doc) {
+		if (!doc) {
+			return db.insert("restaurants", temp)
+		}
+	}).catch(function(err) {
+		logger.error("Well that shouldn't happen")
+		logger.error(err)
+	})
+}
 
 var verify = function(session, user) {
 	return db.findOne("sessions", {session: session}).then(function(docs) {

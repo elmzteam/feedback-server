@@ -38,11 +38,8 @@ var find = function(collection, query){
 var findOne = function(collection, query, reject){
 	return find(collection, query)
 		.then(function(data){
-		if(data.length == 1){
-			return data[0];
-		}
-		return Promise.reject(reject);
-	});
+			return data ? data[0] : data;
+		})
 }
 
 /**
@@ -107,6 +104,7 @@ var createCollection = function(collection, options) {
 }
 
 module.exports = {
+	raw: db,
 	find: find,
 	findOne: findOne,
 	insert: insert,
