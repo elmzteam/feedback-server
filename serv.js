@@ -23,6 +23,7 @@ var geolib			= require("geolib");
 var Yelp			= require("yelp");
 var instagram		= require("instagram-node").instagram();
 var Locu			= require("./locu");
+var yummly			= require("yummly");
 
 // Local imports
 var logger			= require("./logger");
@@ -45,21 +46,39 @@ if(nconf.get("YELP_CONSUMER_KEY") && nconf.get("YELP_CONSUMER_SECRET") && nconf.
 		token_secret: nconf.get("YELP_TOKEN_SECRET")
 	});
 } else {
-	logger.warn("Yelp credentials missing or incomplete.  Will not be able to pull Yelp data.");
+	logger.error("FATAL: Yelp credentials missing or incomplete.");
+	process.exit(1);
 }
 
 if(nconf.get("INSTAGRAM_ACCESS_TOKEN")){
 	instagram.use({access_token: nconf.get("INSTAGRAM_ACCESS_TOKEN")});
 	var igSearch = Promise.denodeify(instagram.media_search);
 } else {
-	logger.warn("Instagram credentials missing or incomplete.  Will not be able to pull Instagram data.");
+	logger.error("FATAL: Instagram credentials missing or incomplete.");
+	process.exit(1);
 }
 
 if(nconf.get("LOCU_API_KEY")){
 	var locu = new Locu.VenueClient(nconf.get("LOCU_API_KEY"));
 	var locuSearch = Promise.denodeify(locu.search).bind(locu);
 } else {
-	logger.warn("Locu credentials missing or incomplete.  Will not be able to pull Locu data.");
+	logger.error("FATAL: Locu credentials missing or incomplete.");
+	process.exit(1);
+}
+
+if(nconf.get("YUMMLY_APP_ID") && nconf.get("YUMMLY_API_KEY")){
+	var yummlySearch = Promise.denodeify(function(query, cb){
+		yummly.search(query, function(err, response, data){
+			cb(err, data)
+		})
+	});
+	var yummlyAuth = {
+		id: nconf.get("YUMMLY_APP_ID"),
+		key: nconf.get("YUMMLY_API_KEY")
+	};
+} else {
+	logger.error("FATAL: Yummly credentials missing or incomplete.");
+	process.exit(1);
 }
 
 app.use(require("body-parser").json());
@@ -451,6 +470,83 @@ var random = function() {
 				})
 	})
 }
+
+var addItem = function(itemName){
+	return Promise.all([
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 0}}),
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 10}}),
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 20}}),
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 30}})
+	]).then(function(data){
+		return data.reduce(function(acc, el){
+			return acc.concat(el.matches);
+		}, []);
+	}).then(function(recipes){
+		var ingredients = {};
+		var tastes = {
+			savory: 0,
+			spicy: 0,
+			sweet: 0,
+			sour: 0,
+			bitter: 0,
+			salty: 0
+		};
+		var tastesCnt = 0;
+		var tasteMapping = {
+			savory: "savory",
+			spicy: "spicy",
+			sweet: "sweet",
+			sour: "sour",
+			bitter: "bitter",
+			salty: "salty",
+			piquant: "spicy",
+			meaty: "savory"
+		};
+
+		for(var i = 0; i < recipes.length; i++){
+			for(var j = 0; j < recipes[i].ingredients.length; j++){
+				if(!(recipes[i].ingredients[j] in ingredients)){
+					ingredients[recipes[i].ingredients[j]] = 0;
+				}
+				ingredients[recipes[i].ingredients[j]]++;
+			}
+
+			if(recipes[i].flavors != null){
+				tastesCnt++;
+				for(var taste in recipes[i].flavors){
+					tastes[tasteMapping[taste]] += recipes[i].flavors[taste];
+				}
+			}
+		}
+
+		for(var ingredient in ingredients){
+			ingredients[ingredient] /= recipes.length;
+		}
+
+		for(var taste in tastes){
+			tastes[taste] /= tastesCnt;
+		}
+
+		return {
+			name: itemName,
+			tastes: tastes,
+			ingredients: ingredients
+		}
+	});
+}
+
+// testing only
+app.get("/about", function(req, res){
+	addItem(req.query.item)
+		.then(function(item){
+		res.status(200).send(item);
+	})
+		.catch(function(err){
+		logger.error(err);
+		logger.error(err.stack);
+		res.status(500).send("u wot 8");
+	})
+});
 
 // Start the server
 
