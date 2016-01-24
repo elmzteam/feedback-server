@@ -381,6 +381,12 @@ app.post("/item/", function(req, res) {
 	var item = req.body.name
 	var rest = req.body.restaurant
 	var user = req.headers.user
+
+	if (item == undefined || rest == undefined) {
+		res.status(400)
+		res.send({error: "Please send a restaurant id and search string"})
+		return
+	}
 	db.find("items", {$text: {$search: "\""+item+"\""}}).then(function(docs) {
 		if (docs.length > 0) {
 			return nn.process(user, docs).then(function(docs) {
@@ -432,7 +438,7 @@ app.get("/items/:RSTR", function(req, res){
 			res.send([])
 			return Promise.resolve()
 		}
-		return db.raw.items.find( {_id: {$in: doc.menu}}, {_id: 0, ingredients: 0}).then(function(docs) {
+		return db.raw.items.find( {_id: {$in: doc.menu}}, { ingredients: 0}).then(function(docs) {
 			/**res.status(200)
 			res.send(docs)
 			return Promise.resolve()**/
