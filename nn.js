@@ -61,7 +61,7 @@ NN.prototype = {
 		return this.getNet(user).then((function(user,values) { 
 			return function(net) {
 				for (var i = 0; i < values.length; i++) {
-					if (net.layers && net.layers.length > 0) {
+					if (net.weights) {
 						values[i].preference = net.run(values[i].tastes).pref
 					} else {
 						values[i].preference = 0
