@@ -506,10 +506,7 @@ var random = function() {
 
 var addItem = function(itemName){
 	return Promise.all([
-		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 0}}),
-		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 10}}),
-		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 20}}),
-		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 30}})
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 0}})
 	]).then(function(data){
 		return data.reduce(function(acc, el){
 			return acc.concat(el.matches);
