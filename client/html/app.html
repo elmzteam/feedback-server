@@ -1,19 +1,26 @@
-<html>
+<html id="app">
 	<head>
 		<link href='https://fonts.googleapis.com/css?family=Dosis:400,300,500,600' rel='stylesheet' type='text/css' />
 		<link rel="stylesheet" href="/css/style.css" />
+
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAKplUC5JovpDaSaFNw443_Gd5n0zev1Jk&callback=initMap"></script>
+		<script src="/js/fetch.js"></script>
+		<script src="/js/jscookie.js"></script>
+		<script src="/js/app.js"></script>
 	</head>
 	<body>
-		<header>
+		<header class="full">
 			<h1>FeedBack</h1>
-			<nav></nav>
+			<nav>
+				<nav-item id="logout">Log out</nav-item>
+			</nav>
 		</header>
-		<feedback-dialog id="login">uwot</feedback-dialog>
+
 		<main>
-			<feedback-slide id="onboard">
-				<div id="perfect">Have a meal you'll love without knowing a word of French.</div>
-				<div id="find-out-how">Find out how</div>
-			</feedback-slide>
+			<feedback-map id="map">
+				
+			</feedback-map>
 		</main>
 	</body>
 </html>

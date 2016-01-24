@@ -85,7 +85,6 @@ $(document).ready(function(){
 			return data.json();
 		})
 			.then(function(data){
-			console.log(data);
 			Cookies.set("user", $(e.target).find(".username").val());
 			Cookies.set("session", data.session);
 			window.location = "/app.html";

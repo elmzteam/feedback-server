@@ -14,6 +14,7 @@ html {
 
 body {
 	margin: 0px;
+	background: #F2F2F2;
 }
 
 header {
@@ -28,6 +29,7 @@ header {
 	align-items: center;
 	padding: 0px 3em;
 	transition: box-shadow 400ms, background 400ms;
+	height: 5rem;
 
 	&.full {
 		@include z-depth(1);
@@ -192,4 +194,21 @@ input[type=submit] {
 	margin: .2em 0px;
 	outline: none;
 	cursor: pointer;
+}
+
+html#app {
+	header {
+		position: relative;
+	}
+	
+	main {
+		width: 100%;
+		height: calc(100% - 5rem);
+		display: flex;
+		
+		feedback-map {
+			width: calc(100% - 50ch);
+			height: 100%;
+		}
+	}
 }
