@@ -2,12 +2,33 @@
 	<head>
 		<link href='https://fonts.googleapis.com/css?family=Dosis:400,300,500,600' rel='stylesheet' type='text/css' />
 		<link rel="stylesheet" href="/css/style.css" />
+		
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+		<script src="/js/client.js"></script>
 	</head>
 	<body>
 		<header>
 			<h1>FeedBack</h1>
-			<nav></nav>
+			<nav>
+				<nav-item>Register</nav-item>
+				<nav-item>Login</nav-item>
+			</nav>
 		</header>
-		<main></main>
+		<feedback-dialog id="login">
+			<h2>Login</h2>
+			<input type="text" placeholder="Username" />
+			<input type="password" placeholder="Password" />
+			<input type="submit" />
+		</feedback-dialog>
+		<main>
+			<feedback-slide id="onboard">
+				<div id="perfect">Have a meal you'll love without knowing a word of French.</div>
+				<div id="find-out-how">Find out how</div>
+			</feedback-slide>
+			<feedback-slide id="how">
+				<div id="content">More promotional material goes here.<br />It's like magic.</div>
+				<div id="register">Sign me up</div>
+			</feedback-slide>
+		</main>
 	</body>
 </html>

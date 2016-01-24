@@ -1,3 +1,5 @@
+@import "shadows";
+
 *,
 *:before,
 *:after {
@@ -10,8 +12,153 @@ html {
 	font-family: "Dosis", sans-serif;
 }
 
+body {
+	margin: 0px;
+}
+
 header {
+	position: fixed;
+	z-index: 10;
+	top: 0px;
+	left: 0px;
+	right: 0px;
+	background: rgba(255, 255, 255, .6);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0px 3em;
+	transition: box-shadow 400ms, background 400ms;
+
+	&.full {
+		@include z-depth(1);
+
+		background: #FFFFFF;
+	}
+
 	h1 {
 		font-weight: 700;
+		font-size: 2.4em;
+		margin: .4em 0px;
+	}
+
+	nav {
+		display: flex;
+		font-size: 1.2em;
+
+		nav-item {
+			margin: 0px .6em;
+			text-transform: uppercase;
+			cursor: pointer;
+		}
+	}
+}
+
+main {
+	width: 100vw;
+
+	feedback-slide {
+		display: block;
+		width: 100vw;
+		height: 85vh;
+		position: relative;
+
+		&#onboard {
+			background: url(/images/stock.jpeg) no-repeat center center;
+			background-size: cover;
+
+			#perfect {
+				position: absolute;
+				left: 0px;
+				bottom: 2em;
+				width: 40%;
+				color: #FFFFFF;
+				margin: .4em;
+				font-size: 3em;
+			}
+
+			#find-out-how {
+				@extend .rounded-button;
+
+				position: absolute;
+				left: 0px;
+				bottom: 0px;
+				font-size: 2em;
+				color: #FFFFFF;
+				margin: .4em 20%;
+				transform: translate(-50%, 0px);
+
+				&:after {
+					content: " \25be";
+				}
+			}
+		}
+
+		&#how {
+			background: #1E88E5;
+
+			#content {
+				position: absolute;
+				font-size: 4em;
+				color: #FFFFFF;
+				white-space: nowrap;
+				left: 50%;
+				top: 50%;
+				transform: translate(-50%, -100%);
+				text-align: center;
+			}
+
+			#register {
+				@extend .rounded-button;
+
+				color: #FFFFFF;
+				position: absolute;
+				font-size: 2em;
+				left: 50%;
+				bottom: 3em;
+				transform: translate(-50%, -100%);
+			}
+		}
+	}
+}
+
+.rounded-button {
+	border: .1em solid currentcolor;
+	border-radius: 1em;
+	padding: .2em .8em;
+	cursor: pointer;
+}
+
+feedback-dialog {
+	@include z-depth(2);
+	
+	background: #FFFFFF;
+	position: absolute;
+	z-index: 8;
+	padding: 1em;
+	border-radius: 2px;
+	
+	input {
+		font-size: inherit;
+	}
+	
+	&#login {
+		display: flex;
+		flex-direction: column;
+		font-size: 1em;
+		right: .4em;
+		top: 5.4em;
+	}
+}
+
+input[type=text],
+input[type=password] {
+	border: 0px;
+	border-bottom: 1px solid #AAAAAA;
+	outline: none;
+	font-family: Dosis;
+	transition: border-bottom 200ms;
+	
+	&:focus {
+		border-bottom: 1px solid #444444;
 	}
 }
