@@ -29,6 +29,8 @@ var yummly			= require("./yummly");
 var logger			= require("./logger");
 var db				= require("./db");
 
+var nn 				= require("./nn")(db.raw);
+
 db.raw.restaurants.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({timestamp: 1}, {expireAfterSeconds: 300000})
@@ -351,23 +353,37 @@ app.get("/restaurants", function(req, res){
 
 });
 
-app.get("/item/:ITEM", function(req, res){
-	var item = req.params.ITEM;
+app.get("/items/:RSTR", function(req, res){
+	var items = req.params.RSTR;
+	var user  = req.headers.user;
 
-	if(item === undefined){
-		res.status(400).send({error: "Please Pass 'item'"});
+	if(items === undefined){
+		res.status(400).send({error: "Please Pass 'restaurant'"});
 		return;
 	}
 	
-	db.raw.items.find( {_id: db.ObjectId(item)}, {_id: 0, ingredients: 0}).then(function(doc) {
+	db.findOne("restaurants", {_id: db.ObjectId(items)}).then(function(doc) {
 		if (!doc) {
 			res.status(404)
 			res.send({error: "Invalid Item"})
-		} else {
-			res.status(200)
-			res.send(doc)
+			return Promise.resolve()
 		}
+		if (doc.menu == null) {
+			res.status(200)
+			res.send([])
+			return Promise.resolve()
+		}
+		return db.raw.items.find( {_id: {$in: doc.menu}}, {_id: 0, ingredients: 0}).then(function(docs) {
+			res.status(200)
+			res.send(docs)
+			return Promise.resolve()
+			return nn.process(user, docs).then(function(docs) {
+				res.status(200)
+				res.send(docs)
+			})
+		})
 	}).catch(function(err) {
+		logger.error(err.stack || err)
 		res.status(500)
 		res.send({error: "00ps"})
 	})
@@ -377,15 +393,40 @@ app.put("/rating", function(req, res){
 	var rstId = req.body.restaurant;
 	var itmId = req.body.item;
 	var rating = req.body.rating;
+	var user = req.headers.user;
 
-	if(rstId === undefined || itmId === undefined || rating === undefined){
-		res.status(400).send();
+	if(itmId === undefined || rating === undefined){
+		res.status(400).send({error: "Please Provide rating and item"});
 		return;
 	}
 
-	// todo
-	res.status(200).send();
+	db.find("items",{_id: db.ObjectId(itmId)}).then(function(doc) {
+		if (!doc) {
+			res.status(404).send({error: "Please specify valid item"})
+			return Promise.resolve()
+		}
+		var page = {
+			user: req.headers.user,
+			item: db.ObjectId(itmId),
+			rating: rating == "yes" ? 1 : 0,
+		}
+		if (rstId) {
+			page.restaurant = db.ObjectId(rstId)
+		}
+		return db.insert("prefs", page).then(function() {
+			res.status(200).send()
+		})
+	}).then((function (user) {
+		return function() {
+			//return nn.train(user)
+		}
+	})(user)).catch(function() {
+		res.status(500)
+		res.send({error: "Khannnnnnn"})
+	})
+
 })
+
 
 // Helper Functions
 
@@ -506,7 +547,10 @@ var random = function() {
 
 var addItem = function(itemName){
 	return Promise.all([
-		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 0}})
+		yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 0}}),
+		//yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 10}}),
+		//yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 20}}),
+		//yummlySearch({credentials: yummlyAuth, query: {q: itemName, maxResult: 10, start: 30}})
 	]).then(function(data){
 		return data.reduce(function(acc, el){
 			return acc.concat(el.matches);
