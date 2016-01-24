@@ -35,7 +35,7 @@ $(document).ready(function(){
 	});
 
 	$("#login-form").submit(function(e){
-		fetch("login", {
+		fetch("/login", {
 			method: "POST",
 			credentials: "same-origin",
 			headers: {
@@ -43,24 +43,58 @@ $(document).ready(function(){
 				"Content-Type": "application/json"
 			},
 			body: JSON.stringify({
-				user: $(this).find(".username").val(),
-				password: $(this).find(".password").val()
+				user: $(e.target).find(".username").val(),
+				password: $(e.target).find(".password").val()
 			})
 		})
-			.then(chckStatus)
+			.then(checkStatus)
 			.then(function(data){
 			return data.json();
 		})
 			.then(function(data){
 			console.log(data);
-			Cookies.set("user", $(this).find(".username").val());
+			Cookies.set("user", $(e.target).find(".username").val());
 			Cookies.set("session", data.session);
-//			window.location = "/app.html";
+			window.location = "/app.html";
 		})
-		.catch(function(err){
+			.catch(function(err){
 			console.error("If only we had a good user alert system.");
 		});
-		
+
+		e.stopPropagation();
+		e.preventDefault();
+		return false;
+	});
+
+	$("#register-form").submit(function(e){
+		fetch("/register", {
+			method: "POST",
+			credentials: "same-origin",
+			headers: {
+				"Accept": "application/json",
+				"Content-Type": "application/json"
+			},
+			body: JSON.stringify({
+				email: $(e.target).find(".email").val(),
+				user: $(e.target).find(".username").val(),
+				password: $(e.target).find(".password").val()
+			})
+		})
+			.then(checkStatus)
+			.then(function(data){
+			return data.json();
+		})
+			.then(function(data){
+			console.log(data);
+			Cookies.set("user", $(e.target).find(".username").val());
+			Cookies.set("session", data.session);
+			window.location = "/app.html";
+		})
+			.catch(function(err){
+			console.error("If only we had a good user alert system.");
+		});
+
+		e.stopPropagation();
 		e.preventDefault();
 		return false;
 	});
