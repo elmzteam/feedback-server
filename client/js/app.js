@@ -7,6 +7,7 @@ $(document).ready(function(){
 
 var map;
 var loc;
+var markers = [];
 
 function initMap() {
 	map = new google.maps.Map(document.getElementsByTagName("feedback-map")[0], {
@@ -23,12 +24,41 @@ function initMap() {
 			if(map){
 				map.setCenter(pos);
 			}
-			console.log(pos);
-			var marker = new google.maps.Marker({
-				position: {lat: pos.coords.latitude, lng: pos.coords.longitude},
-				map: map,
-				title: "Current Location"
+
+			fetch("/restaurants?lat=" + pos.coords.latitude + "&lon=" + pos.coords.longitude, {
+				method: "GET",
+				credentials: "same-origin"
+			})
+				.then(checkStatus)
+				.then(function(data){
+				return data.json();
+			})
+				.then(function(data){
+				for(var i = 0; i < data.length; i++){
+					markers.push(new google.maps.Marker({
+						position: {
+							lat: data[i].location.coords[0],
+							lng: data[i].location.coords[1]
+						},
+						label: data[i].name,
+						map: map,
+						animation: google.maps.Animation.DROP
+					}));
+				}
+			})
+				.catch(function(err){
+				console.error(err);
 			});
 		});
+	}
+}
+
+var checkStatus = function(response){
+	if(response.status >= 200 && response.status < 300){
+		return response;
+	} else {
+		var error = new Error(response.statusText);
+		error.response = response;
+		throw error;
 	}
 }
