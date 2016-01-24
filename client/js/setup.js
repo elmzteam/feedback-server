@@ -33,7 +33,7 @@ $(document).ready(function(){
 		$(this).addClass("selected");
 	});
 
-	$("#submit").click(function(){
+	$("#item-setup-list").on("click", "#submit",function(){
 		var promises = [];
 
 		$("#item-setup-list .item").each(function(i, el){
