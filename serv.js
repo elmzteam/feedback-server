@@ -285,7 +285,8 @@ app.get("/restaurants", function(req, res){
 						return matched ? photo : null;
 					}).reduce(function(acc, el){
 						if(el != null){
-							acc.push(el.link);
+							console.log(el);
+							acc.push(el.images.standard_resolution.url);
 						}
 						return acc;
 					}, []);
