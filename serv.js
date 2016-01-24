@@ -269,19 +269,20 @@ app.get("/restaurants", function(req, res){
 			});
 
 			var locuData = yelpData.then(function(data){
+				console.log(data)
 				return locuSearch({
 					fields: ["name", "menus", "location"],
-					venue_queries: [
+					venue_queries: 
+					[
 						{
 							location: {
 								geo: {
-									"$in_lat_lng_radius": [lat, lon, data[data.length-1].distance + 50]
+									"$in_lat_lng_radius": [lat, lon, data[data.length-1].distance + 100]
 								}
 							},
 							menus: {
 								"$present": true
-							},
-
+							}
 						}
 					]
 				});
@@ -291,7 +292,7 @@ app.get("/restaurants", function(req, res){
 
 			var igData = yelpData.then(function(data){
 				return Promise.all(data.map(function(el){
-					return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
+					return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 30});
 				}));
 			}).then(function(data){
 				return data.map(function(el){
@@ -309,7 +310,6 @@ app.get("/restaurants", function(req, res){
 						return matched ? photo : null;
 					}).reduce(function(acc, el){
 						if(el != null){
-							console.log(el);
 							acc.push(el.images.standard_resolution.url);
 						}
 						return acc;
@@ -323,31 +323,31 @@ app.get("/restaurants", function(req, res){
 				data = data[0];
 
 				var all = []
-
+				
 				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 					data[i].menu = [];
-
 					var added = false
 					for(var j = 0; j < menus.length; j++){
-<<<<<<< Updated upstream
-						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 30){
-=======
-                        var titleWords = menus[j].title.split;
-                        var ignoreWords = ["The", "the", "a", "A", "of", "Of"];
-                        var cntOverlap = 0;
-                        for (var n = 0; n < titleWords.length; n++){
-                            var ignore = false;
-                            for (var j = 0; j < ignoreWords.length; j++)
-                                if (titleWords[n].indexOf(ignoreWords[j]) >= 0)
-                                    ignore = true;
-                            if (data[i].title.split.indexOf(titleWords[n]) >= 0 && !ignore){
-                                cntOverlap++;
-                            }
-                        }
-						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40 && cntOverlap > 0){
->>>>>>> Stashed changes
-							
+						var titleWords = menus[j].name.split(" ");
+						var ignoreWords = ["The", "the", "a", "A", "of", "Of"];
+						var cntOverlap = 0;
+						for (var n = 0; n < titleWords.length; n++){
+							var ignore = false;
+							for (var jp = 0; jp < ignoreWords.length; jp++) {
+								if (titleWords[n].indexOf(ignoreWords[jp]) >= 0) {
+									ignore = true;
+								}
+								if (data[i].name.split(" ").indexOf(titleWords[n]) >= 0 && !ignore){
+									cntOverlap++;
+								}
+							}
+						}
+						if (cntOverlap != 0) {
+							console.log("Attempting to conflate "+data[i].name+" and "+menus[j].name)
+							console.log("They share a geolib distance of "+geolib.getDistance(menus[j].location.geo.coordinates, data[i].location))
+						}
+						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 100 && cntOverlap != 0){
 							all.push((function(data, i) {
 								return insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
 									data[i].menu = ids ;//menus[j].menus[0];
@@ -454,13 +454,15 @@ app.get("/items/:RSTR", function(req, res){
 			res.send([])
 			return Promise.resolve()
 		}
+		console.log(doc.menu)
 		return db.raw.items.find( {_id: {$in: doc.menu}}, { ingredients: 0}).then(function(docs) {
-			/**res.status(200)
-			res.send(docs)
-			return Promise.resolve()**/
 			return nn.process(user, docs).then(function(docs) {
-				res.status(200)
-				res.send(docs)
+				return Promise.all(docs.map(function(e) {
+					return fetchLike(e, user)
+				})).then(function(docs) {
+					res.status(200)
+					res.send(docs)
+				})
 			})
 		})
 	}).catch(function(err) {
@@ -481,6 +483,8 @@ app.put("/rating", function(req, res){
 		return;
 	}
 
+	console.log(itmId)
+	console.log(rstId)
 	db.find("items",{_id: db.ObjectId(itmId)}).then(function(doc) {
 		if (!doc) {
 			res.status(404).send({error: "Please specify valid item"})
@@ -501,9 +505,10 @@ app.put("/rating", function(req, res){
 		return function() {
 			return nn.train(user)
 		}
-	})(user)).catch(function() {
+	})(user)).catch(function(err) {
 		res.status(500)
 		res.send({error: "Khannnnnnn"})
+		logger.error(err.stack || err)
 	})
 
 })
@@ -551,6 +556,14 @@ var insertMenu = function(rest, menu) {
 		}
 	}
 	return Promise.all(out);
+}
+
+var fetchLike = function(item, user) {
+	return db.find("prefs", {item: item._id, user: user}).then(function(docs) {
+		if (!docs || docs.length == 0) return Promise.resolve(item) 
+		item.rating = docs[0].rating
+		return Promise.resolve(item)
+	})
 }
 
 var fetchID = function(coll, query) {
