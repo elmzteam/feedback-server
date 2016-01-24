@@ -350,16 +350,26 @@ app.get("/restaurants", function(req, res){
 
 });
 
-app.get("/items", function(req, res){
-	var rstId = req.query.restaurant;
+app.get("/item/:ITEM", function(req, res){
+	var item = req.params.ITEM;
 
-	if(rstId === undefined){
-		res.status(400).send();
+	if(item === undefined){
+		res.status(400).send({error: "Please Pass 'item'"});
 		return;
 	}
-
-	// todo
-	res.status(200).send();
+	
+	db.raw.items.find( {_id: db.ObjectId(item)}, {_id: 0, ingredients: 0}).then(function(doc) {
+		if (!doc) {
+			res.status(404)
+			res.send({error: "Invalid Item"})
+		} else {
+			res.status(200)
+			res.send(doc)
+		}
+	}).catch(function(err) {
+		res.status(500)
+		res.send({error: "00ps"})
+	})
 })
 
 app.put("/rating", function(req, res){
