@@ -35,6 +35,7 @@ var nn 				= require("./nn")(db.raw);
 db.raw.restaurants.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({timestamp: 1}, {expireAfterSeconds: 300000})
+db.raw.items.createIndex({name: "text"})
 
 if(DEBUG){
 	logger.warn("Using debug mode.");
@@ -188,7 +189,6 @@ app.use(function(req, res, next) {
 	var session = req.headers.session
 	var csession = req.cookies.session
 	var cuser = req.cookies.user
-	console.log(req.cookies)
 	verify(session || csession, user || cuser).then(function() {
 		next()
 	}).catch(function(err) {
@@ -331,12 +331,11 @@ app.get("/restaurants", function(req, res){
 
 				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
-					data[i].menu = null;
+					data[i].menu = [];
 
 					var added = false
 					for(var j = 0; j < menus.length; j++){
-						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40){
-
+						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 30){
 							all.push((function(data, i) {
 								return insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
 									data[i].menu = ids ;//menus[j].menus[0];
@@ -382,6 +381,47 @@ app.get("/restaurants", function(req, res){
 
 });
 
+app.post("/item/", function(req, res) {
+	var item = req.body.name
+	var rest = req.body.restaurant
+	var user = req.headers.user
+
+	if (item == undefined || rest == undefined) {
+		res.status(400)
+		res.send({error: "Please send a restaurant id and search string"})
+		return
+	}
+	db.find("items", {$text: {$search: "\""+item+"\""}}).then(function(docs) {
+		if (docs.length > 0) {
+			return nn.process(user, docs).then(function(docs) {
+				res.status(200)
+				res.send(docs[0])
+				return Promise.resolve(docs[0]._id)
+			})		
+		} else {
+			return addItem(item).then(function(doc) {
+				doc.name = item
+				res.status(200)
+				res.send(doc)
+				return db.insert("items", doc).next(function(doc) {
+					console.log(doc)
+					return nn.process(user, doc).then(function(docs) {
+						res.status(200)
+						res.send(docs[0])
+						return Promise.resolve(doc[0]._id)
+					})
+				})
+			})
+		}
+	}).then(function(id) {
+		return db.update("restaurants", {_id: db.ObjectId(rest)}, {$addToSet: {menu: id}})
+	}).catch(function(err) {
+		res.status(500)
+		res.send({error: "So that happened"})
+		logger.error(err.stack || err)
+	})
+})
+
 app.get("/items/:RSTR", function(req, res){
 	var items = req.params.RSTR;
 	var user  = req.headers.user;
@@ -397,12 +437,12 @@ app.get("/items/:RSTR", function(req, res){
 			res.send({error: "Invalid Item"})
 			return Promise.resolve()
 		}
-		if (doc.menu == null) {
+		if (doc.menu.length == 0) {
 			res.status(200)
 			res.send([])
 			return Promise.resolve()
 		}
-		return db.raw.items.find( {_id: {$in: doc.menu}}, {_id: 0, ingredients: 0}).then(function(docs) {
+		return db.raw.items.find( {_id: {$in: doc.menu}}, { ingredients: 0}).then(function(docs) {
 			/**res.status(200)
 			res.send(docs)
 			return Promise.resolve()**/
@@ -437,7 +477,7 @@ app.put("/rating", function(req, res){
 		var page = {
 			user: req.headers.user,
 			item: db.ObjectId(itmId),
-			rating: rating == "yes" ? 1 : 0,
+			rating: rating,
 		}
 		if (rstId) {
 			page.restaurant = db.ObjectId(rstId)
@@ -461,7 +501,7 @@ app.put("/rating", function(req, res){
 
 var insertMenu = function(rest, menu) {
 	if (!menu) {
-		return Promise.resolve(null)
+		return Promise.resolve([])
 	}
 	var out = []
 	for (var s = 0; s < menu.sections.length; s++) {
@@ -472,27 +512,26 @@ var insertMenu = function(rest, menu) {
 				var cont = subsec.contents[c]
 				if (cont.type == "ITEM") {
 					out.push((function (cont) {
-						return addItem(cont.name).then(function(data) {
-							return db.findOne("items", {name: cont.name}).then(function (doc){
-								if (doc) {
-									return db.update("items", {name: cont.name}, {
-										$set: {ingredients: data.ingredients, tastes: data.tastes},
-										$addToSet: {description: {
-											$each: csvSplit(cont.description)
-										}}
-									})
-								}
+						return db.findOne("items", {name: cont.name}).then(function (doc) {
+							if (doc) {
+								return db.update("items", {name: cont.name}, {
+									$addToSet: {description: {
+										$each: csvSplit(cont.description)
+									}}
+								})
+							}
+							return addItem(cont.name).then(function(data) {
 								return db.insert("items", {
 									name: cont.name,
 									ingredients: data.ingredients,
 									tastes: data.tastes,
 									description: csvSplit(cont.description)
 								})
-							}).then(function() {
-								return fetchID("items", {name: cont.name})
-							}).catch(function(err) {
-								logger.error(err)
 							})
+						}).then(function() {
+							return fetchID("items", {name: cont.name})
+						}).catch(function(err) {
+							logger.error(err)
 						})
 					})(cont))
 				}
@@ -505,7 +544,7 @@ var insertMenu = function(rest, menu) {
 var fetchID = function(coll, query) {
 	return db.findOne(coll, query).then(function(doc) {
 		if (!doc) {
-			return Promise.resolve(null)
+			return Promise.resolve([])
 		}
 		return Promise.resolve(doc._id)
 	})

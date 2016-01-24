@@ -35,10 +35,11 @@ function initMap() {
 			})
 				.then(function(data){
 				for(var i = 0; i < data.length; i++){
+					console.log(data[i]);
 					markers.push(new google.maps.Marker({
 						position: {
-							lat: data[i].location.coords[0],
-							lng: data[i].location.coords[1]
+							lat: data[i].location.coordinates[0],
+							lng: data[i].location.coordinates[1]
 						},
 						label: data[i].name,
 						map: map,
