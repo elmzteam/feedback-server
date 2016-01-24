@@ -508,27 +508,26 @@ var insertMenu = function(rest, menu) {
 				var cont = subsec.contents[c]
 				if (cont.type == "ITEM") {
 					out.push((function (cont) {
-						return addItem(cont.name).then(function(data) {
-							return db.findOne("items", {name: cont.name}).then(function (doc){
-								if (doc) {
-									return db.update("items", {name: cont.name}, {
-										$set: {ingredients: data.ingredients, tastes: data.tastes},
-										$addToSet: {description: {
-											$each: csvSplit(cont.description)
-										}}
-									})
-								}
+						return db.findOne("items", {name: cont.name}).then(function (doc) {
+							if (doc) {
+								return db.update("items", {name: cont.name}, {
+									$addToSet: {description: {
+										$each: csvSplit(cont.description)
+									}}
+								})
+							}
+							return addItem(cont.name).then(function(data) {
 								return db.insert("items", {
 									name: cont.name,
 									ingredients: data.ingredients,
 									tastes: data.tastes,
 									description: csvSplit(cont.description)
 								})
-							}).then(function() {
-								return fetchID("items", {name: cont.name})
-							}).catch(function(err) {
-								logger.error(err)
 							})
+						}).then(function() {
+							return fetchID("items", {name: cont.name})
+						}).catch(function(err) {
+							logger.error(err)
 						})
 					})(cont))
 				}
