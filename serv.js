@@ -91,6 +91,10 @@ if(nconf.get("YUMMLY_APP_ID") && nconf.get("YUMMLY_API_KEY")){
 app.use(require("body-parser").json());
 var http = require("http").Server(app);
 
+// Web interface
+
+app.use(express.static("build"));
+
 // API methods
 
 app.post("/register", function(req, res) {
@@ -166,6 +170,7 @@ app.post("/login", function(req, res) {
 					session: bytes,
 				}).then(function() {
 					res.status(201)
+					res.cookie("user", username)
 					res.cookie("session", bytes)
 					res.cookie("user", username)
 					res.send({
@@ -313,7 +318,7 @@ app.get("/restaurants", function(req, res){
 				data = data[0];
 
 				var all = []
-				
+
 				for(var i = 0; i < data.length; i++) {
 					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 					data[i].menu = [];
@@ -454,7 +459,7 @@ app.get("/items/:RSTR", function(req, res){
 		res.status(400).send({error: "Please Pass 'restaurant'"});
 		return;
 	}
-	
+
 	db.findOne("restaurants", {_id: db.ObjectId(items)}).then(function(doc) {
 		if (!doc) {
 			res.status(404)
