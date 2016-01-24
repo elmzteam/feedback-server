@@ -59,12 +59,6 @@ $(document).ready(function(){
 			return data.json();
 		})
 			.then(function(data){
-			for(var i = 0; i < data.length; i++){
-				data[i].preference = Math.random(); // REMOVE THIS!!
-			}
-			return data;
-		})
-			.then(function(data){
 			return data.sort(function(a, b){
 				return b.preference - a.preference;
 			});
@@ -122,6 +116,11 @@ function initMap() {
 				.then(checkStatus)
 				.then(function(data){
 				return data.json();
+			})
+				.then(function(data){
+				return data.sort(function(a, b){
+					return b.
+				})
 			})
 				.then(function(data){
 				restaurants = data;
