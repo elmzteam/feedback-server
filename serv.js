@@ -432,7 +432,7 @@ app.put("/rating", function(req, res){
 		var page = {
 			user: req.headers.user,
 			item: db.ObjectId(itmId),
-			rating: rating == "yes" ? 1 : 0,
+			rating: rating,
 		}
 		if (rstId) {
 			page.restaurant = db.ObjectId(rstId)
