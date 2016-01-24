@@ -32,6 +32,9 @@ var db				= require("./db");
 
 var nn 				= require("./nn")(db.raw);
 
+var obj = require("./obj")
+app.use(obj.handle)
+
 db.raw.restaurants.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({location: "2dsphere"})
 db.raw.queries.createIndex({timestamp: 1}, {expireAfterSeconds: 300000})
