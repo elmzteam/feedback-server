@@ -111,6 +111,7 @@ app.post("/register", function(req, res) {
 			} else {
 				res.send({error: "Email Already Exists"})
 			}
+			return Promise.resolve(false)
 		} else {
 			return db.insert("users", {
 				username: username,
@@ -118,13 +119,30 @@ app.post("/register", function(req, res) {
 				email: email,
 			})
 		}
-	}).then(function() {
-		res.status(201)
-		res.send({message: "Created"})
+	}).then(function(skip) {
+		if (skip === false) {
+			return Promise.resolve(false)
+		}
+		return random().then(function(bytes) {
+			return db.find("users", {username: username}).then(function(doc) {
+				return db.insert("sessions", {
+					user: doc[0]._id,
+					session: bytes,
+				}).then(function() {
+					res.status(201)
+					res.cookie("session", bytes)
+					res.cookie("user", username)
+					res.send({
+						session: bytes
+					})
+					return Promise.resolve()
+				})
+			})
+		})
 	}).catch(function(err) {
 		res.status(500)
 		res.send({error: "Shit"})
-		logger.error(err)
+		logger.error(err.stack || err)
 	})
 })
 
@@ -150,6 +168,7 @@ app.post("/login", function(req, res) {
 					res.status(201)
 					res.cookie("user", username)
 					res.cookie("session", bytes)
+					res.cookie("user", username)
 					res.send({
 						session: bytes
 					})
@@ -384,9 +403,9 @@ app.get("/items/:RSTR", function(req, res){
 			return Promise.resolve()
 		}
 		return db.raw.items.find( {_id: {$in: doc.menu}}, {_id: 0, ingredients: 0}).then(function(docs) {
-			res.status(200)
+			/**res.status(200)
 			res.send(docs)
-			return Promise.resolve()
+			return Promise.resolve()**/
 			return nn.process(user, docs).then(function(docs) {
 				res.status(200)
 				res.send(docs)

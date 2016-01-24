@@ -46,21 +46,26 @@ NN.prototype = {
 	getIOPair: function(item, pref) {
 		var that = this
 		return closedPromise(item, pref, that, function(resolve, reject, item, pref, that) {
-			that.db.items.findOne({_id: item}, function(err, doc) {
-				if (err) {
-					reject(err)
-					return
+			that.db.items.findOne({_id: item}, (function(pref) {
+				return function(err, doc) {
+					if (err) {
+						reject(err)
+						return
+					}
+					resolve({input: doc[0].tastes, output: {pref: pref}})
 				}
-				resolve({input: doc.tastes, output: {pref: pref}})
-			})
+			})(pref))
 		})
 	},
 	process: function(user, values) {
 		return this.getNet(user).then((function(user,values) { 
 			return function(net) {
 				for (var i = 0; i < values.length; i++) {
-					console.log(net.run(values[i].tastes).pref)
-					values[i].preference = net.run(values[i].tastes).pref
+					if (net.layers && net.layers.length > 0) {
+						values[i].preference = net.run(values[i].tastes).pref
+					} else {
+						values[i].preference = 0
+					}
 				}
 				return Promise.resolve(values)
 			}
@@ -69,14 +74,13 @@ NN.prototype = {
 	train: function(user) {
 		var that = this
 		return closedPromise(user, that, function(resolve, reject, user, that) {
-			console.log(arguments)
 			that.db.prefs.find({user: user}, function(err, docs) {
 				if (err) {
 					reject(err)
 				}
 				var all = []
 				for (var id = 0; id < docs.length; id++) {
-					all.push(that.getIOPair(docs[id].item, docs[id].pref))
+					all.push(that.getIOPair(docs[id].item, docs[id].rating))
 				}
 				return Promise.all(all).then((function(that, user) {
 					return function(data) {
