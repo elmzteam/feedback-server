@@ -211,4 +211,72 @@ html#app {
 			height: 100%;
 		}
 	}
+	
+	feedback-location-list {
+		padding: 0px 1em;
+		width: 50ch;
+		overflow-y: scroll;
+		
+		feedback-location {
+			@include z-depth(1);
+			
+			display: block;
+			width: 100%;
+			background: #FFFFFF;
+			border-radius: 2px;
+			margin: 1em 0px;
+			height: 6em;
+			position: relative;
+			cursor: pointer;
+			
+			.label {
+				font-size: 4em;
+				height: 100%;
+				width: 1.5em;
+				background-color: #E53935;
+				color: rgba(255, 255, 255, 0.8);
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-weight: 700;
+				float: left;
+				background-position: center center;
+				background-size: 125% 125%;
+				border-radius: 2px 0px 0px 2px;
+				margin-right: .1em;
+			}
+			
+			h3 {
+				padding-top: .2em;
+				font-size: 1.6em;
+				margin-bottom: .2em;
+			}
+			
+			.categories {
+				color: #ABABAB;
+			}
+			
+			.address {
+				font-size: .8em;
+				position: absolute;
+				right: .4em;
+				bottom: .2em;
+			}
+			
+			.show-menu {
+				position: absolute;
+				top: .2em;
+				right: .2em;
+				color: #909090;
+				border-radius: 1em;
+				padding: .2em;
+				cursor: pointer;
+				
+				&:hover {
+					background: #D2D2D2;
+					color: #727272;
+				}
+			}
+		}
+	}
 }

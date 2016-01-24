@@ -3,11 +3,24 @@ $(document).ready(function(){
 		Cookies.remove("user");
 		Cookies.remove("session");
 	});
+	
+	$("feedback-location-list").on("click", "feedback-location", function(){
+		map.panTo({
+			lat: parseFloat($(this).attr("data-lat")),
+			lng: parseFloat($(this).attr("data-lon"))
+		})
+	})
+	
+	$("feedback-location-list").on("click", "feedback-location .show-menu", function(){
+		
+	});
 });
 
 var map;
 var loc;
 var markers = [];
+var labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var restaurants;
 
 function initMap() {
 	map = new google.maps.Map(document.getElementsByTagName("feedback-map")[0], {
@@ -34,17 +47,30 @@ function initMap() {
 				return data.json();
 			})
 				.then(function(data){
+				restaurants = data;
 				for(var i = 0; i < data.length; i++){
-					console.log(data[i]);
 					markers.push(new google.maps.Marker({
 						position: {
-							lat: data[i].location.coordinates[0],
-							lng: data[i].location.coordinates[1]
+							lat: data[i].location.coordinates[1],
+							lng: data[i].location.coordinates[0]
 						},
-						label: data[i].name,
+						label: labels.charAt(i),
 						map: map,
 						animation: google.maps.Animation.DROP
 					}));
+					
+					var card = $("feedback-location-list").append("<feedback-location data-lat='" + data[i].location.coordinates[1] + "' data-lon='" + data[i].location.coordinates[0] + "'></feedback-location>").find("feedback-location:last-child");
+					
+					var img = card.append("<div class='label'>" + labels.charAt(i) + "</div>").find(".label");
+					
+					if(data[i].images.length > 0){
+						img.css("background-image", "url(" + data[i].images[0] + ")");
+					}
+					
+					card.append("<h3>" + data[i].name + "</h3>");
+					card.append("<div class='categories'>" + data[i].categories + "</div>");
+					card.append("<div class='address'>" + data[i].address + "</div>");
+					card.append("<span class='material-icons md-dark show-menu'>restaurant_menu</span>");
 				}
 			})
 				.catch(function(err){
