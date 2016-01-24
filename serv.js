@@ -657,6 +657,10 @@ var cache = function(rest) {
 		}).join(", ");
 	}
 	
+	if(rest.address === undefined){
+		rest.address = "";
+	}
+	
 	return igSearch(rest.location.coordinates[1], rest.location.coordinates[0], {min_timestamp: 0, distance: 20})
 		.then(function(data){
 		return data.map(function(photo){
