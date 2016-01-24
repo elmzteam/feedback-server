@@ -251,6 +251,9 @@ app.get("/restaurants", function(req, res){
 			query["location"]["$near"]["$maxDistance"] = 10000;
 			return db.find("restaurants", query).then(function(result) {
 				if (result) {
+					for(var i = 0; i < result.length; i++){
+						result[i].distance = geolib.getDistance({latitude: lat, longitude: lon}, {latitude: result[i].location.coordinates[1], longitude: result[i].location.coordinates[0]})
+					}
 					res.status(200)
 					res.send(result)
 				}
