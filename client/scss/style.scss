@@ -362,6 +362,18 @@ html#app {
 			.items-listing {
 				width: 50ch;
 				overflow-y: scroll;
+				position: relative;
+				
+				.no-menu {
+					position: absolute;
+					left: 50%;
+					top: 50%;
+					transform: translate(-50%, -50%);
+					font-size: 2em;
+					color: #CECECE;
+					width: 100%;
+					text-align: center;
+				}
 
 				.item {
 					display: flex;

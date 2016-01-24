@@ -268,6 +268,7 @@ app.get("/restaurants", function(req, res){
 						name: el.name,
 						distance: el.distance,
 						categories: el.categories.map(function(cat){
+							console.log(cat);
 							return cat[0];
 						}).join(", "),
 						address: el.location.address[0],
@@ -285,48 +286,19 @@ app.get("/restaurants", function(req, res){
 				return data.venues;
 			});
 
-			var igData = yelpData.then(function(data){
-				return Promise.all(data.map(function(el){
-					return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 30});
-				}));
-			}).then(function(data){
-				return data.map(function(el){
-					return el.map(function(photo){
-						if(photo.type != "image"){
-							return null;
-						}
-						var matched = false;
-						for(var i = 0; i < photo.tags.length; i++){
-							if(photo.tags[i].includes("food")){
-								matched = true;
-								break;
-							}
-						}
-						return matched ? photo : null;
-					}).reduce(function(acc, el){
-						if(el != null){
-							acc.push(el.images.standard_resolution.url);
-						}
-						return acc;
-					}, []);
-				})
-			});
-
-			return Promise.all([yelpData, igData, locuData]).then(function(data){
-				var images = data[1];
-				var menus = data[2]
+			return Promise.all([yelpData, locuData]).then(function(data){
+				var menus = data[1]
 				data = data[0];
 
 				var all = []
 
 				for(var i = 0; i < data.length; i++) {
-					data[i].images = (images[i] ? images[i].slice(0, 6) : []);
 					data[i].menu = [];
 					var added = false
 					for(var j = 0; j < menus.length; j++){
 						if (menus[j] === false) continue
 						var titleWords = menus[j].name.split(" ");
-						var ignoreWords = ["The", "the", "a", "A", "of", "Of"];
+						var ignoreWords = ["The", "the", "a", "A", "of", "Of", "Cafe", "cafe"];
 						var cntOverlap = 0;
 						for (var n = 0; n < titleWords.length; n++){
 							var ignore = false;
@@ -369,17 +341,20 @@ app.get("/restaurants", function(req, res){
 						})(data,i))
 					}
 				}
-				/**	
+
 				for (var i = 0; i < menus.length; i++) {
-					if (menus[i] == false) continue
-					menus[i].location = menus[i].location.geo.coordinates
-					menus[i].images = (images[i] ? images[i].slice(0, 6) : []);
+					logger.warn(menus[i].name);
+					if (menus[i] === false) continue
+					menus[i].location = {
+						longitude: menus[i].location.geo.coordinates[0],
+						latitude: menus[i].location.geo.coordinates[1]
+					}
 					all.push((function(data, i) {
 						return insertMenu(data[i], data[i].menus[0]).then(function(ids) {
 							data[i].menu = ids ;//menus[j].menus[0];
 							return Promise.resolve(data[i]);
 						}).then(function(obj) {
-							return Promise.resolve()
+							//							return Promise.resolve()
 							return cache(obj).then(function() {
 								return Promise.resolve(data[i])
 							})
@@ -387,9 +362,7 @@ app.get("/restaurants", function(req, res){
 							logger.error(err.stack)
 						})
 					})(menus, i))
-				}**/
-					
-					
+				}
 
 				db.insert("queries", {
 					timestamp: Date.now(), 
@@ -637,6 +610,33 @@ var regexGroup = function(regex, string, choice) {
 	return out;
 }
 
+//var igData = yelpData.then(function(data){
+//	return Promise.all(data.map(function(el){
+//		return igSearch(el.location.latitude, el.location.longitude, {min_timestamp: 0, distance: 20});
+//	}));
+//}).then(function(data){
+//	return data.map(function(el){
+//		return el.map(function(photo){
+//			if(photo.type != "image"){
+//				return null;
+//			}
+//			var matched = false;
+//			for(var i = 0; i < photo.tags.length; i++){
+//				if(photo.tags[i].includes("food")){
+//					matched = true;
+//					break;
+//				}
+//			}
+//			return matched ? photo : null;
+//		}).reduce(function(acc, el){
+//			if(el != null){
+//				acc.push(el.images.standard_resolution.url);
+//			}
+//			return acc;
+//		}, []);
+//	})
+//});
+
 var cache = function(rest) {
 	var temp = rest
 	temp.location = {
@@ -646,13 +646,49 @@ var cache = function(rest) {
 			rest.location.latitude,
 		]
 	}
-	return db.findOne("restaurants", {name: temp.name, location: temp.location}).then(function(doc) {
+	
+	console.log(temp);
+	
+	if(rest.categories === undefined){
+		rest.categories = "Unknown";
+	} else if(typeof rest.categories == "object"){
+		rest.categories = rest.categories.map(function(el){
+			return el.name;
+		}).join(", ");
+	}
+	
+	return igSearch(rest.location.coordinates[1], rest.location.coordinates[0], {min_timestamp: 0, distance: 20})
+		.then(function(data){
+		return data.map(function(photo){
+			if(photo.type != "image"){
+				return null;
+			}
+			var matched = false;
+			for(var i = 0; i < photo.tags.length; i++){
+				if(photo.tags[i].includes("food")){
+					matched = true;
+					break;
+				}
+			}
+			return matched ? photo : null;
+		}).reduce(function(acc, el){
+			if(el != null){
+				acc.push(el.images.standard_resolution.url);
+			}
+			return acc;
+		}, []).slice(0, 6);
+	}).then(function(data){
+		temp.images = data;
+		return temp;
+	}).then(function(temp){
+		return db.findOne("restaurants", {name: temp.name, location: temp.location})
+	}).then(function(doc) {
 		if (!doc) {
 			return db.insert("restaurants", temp)
 		}
 	}).catch(function(err) {
 		logger.error("Well that shouldn't happen")
-		logger.error(err)
+		logger.error(err.stack)
 	})
 }
 

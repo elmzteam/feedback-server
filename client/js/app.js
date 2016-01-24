@@ -75,6 +75,10 @@ $(document).ready(function(){
 
 				items.append(item);
 			}
+			
+			if(data.length == 0){
+				items.append("<div class='no-menu'>No menu information found.</div>");
+			}
 		})
 	});
 
