@@ -118,11 +118,6 @@ function initMap() {
 				return data.json();
 			})
 				.then(function(data){
-				return data.sort(function(a, b){
-					return b.
-				})
-			})
-				.then(function(data){
 				restaurants = data;
 				for(var i = 0; i < data.length; i++){
 					markers.push(new google.maps.Marker({
