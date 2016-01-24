@@ -7,6 +7,28 @@
 	font-family: inherit;
 }
 
+i.md-64 {
+	font-size: 64px;
+	position: relative;
+	top: 18px;
+	display: inline-block;
+	margin-bottom: -10px;
+	margin-right: 10px;
+	color: #ddd;
+}
+
+.splash-more {
+	max-width: 30em;
+	margin: auto;
+	padding-top: 20px;
+	font-size: 2em;
+	color: #fff;
+}
+
+.icon-more {
+	padding-left: 30px;
+}
+
 html {
 	box-sizing: border-box;
 	font-family: "Dosis", sans-serif;
