@@ -330,7 +330,23 @@ app.get("/restaurants", function(req, res){
 
 					var added = false
 					for(var j = 0; j < menus.length; j++){
+<<<<<<< Updated upstream
 						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 30){
+=======
+                        var titleWords = menus[j].title.split;
+                        var ignoreWords = ["The", "the", "a", "A", "of", "Of"];
+                        var cntOverlap = 0;
+                        for (var n = 0; n < titleWords.length; n++){
+                            var ignore = false;
+                            for (var j = 0; j < ignoreWords.length; j++)
+                                if (titleWords[n].indexOf(ignoreWords[j]) >= 0)
+                                    ignore = true;
+                            if (data[i].title.split.indexOf(titleWords[n]) >= 0 && !ignore){
+                                cntOverlap++;
+                            }
+                        }
+						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40 && cntOverlap > 0){
+>>>>>>> Stashed changes
 							
 							all.push((function(data, i) {
 								return insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
