@@ -380,9 +380,9 @@ app.get("/items/:RSTR", function(req, res){
 			return Promise.resolve()
 		}
 		return db.raw.items.find( {_id: {$in: doc.menu}}, {_id: 0, ingredients: 0}).then(function(docs) {
-			res.status(200)
+			/**res.status(200)
 			res.send(docs)
-			return Promise.resolve()
+			return Promise.resolve()**/
 			return nn.process(user, docs).then(function(docs) {
 				res.status(200)
 				res.send(docs)
