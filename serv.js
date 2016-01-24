@@ -188,7 +188,7 @@ app.post("/login", function(req, res) {
 })
 
 app.use(function(req, res, next) {
-	var user = req.headers.user
+	var user = req.headers.user || req.cookies.user
 	var session = req.headers.session
 	var csession = req.cookies.session
 	var cuser = req.cookies.user
@@ -414,7 +414,7 @@ app.get("/restaurants", function(req, res){
 app.post("/item/", function(req, res) {
 	var item = req.body.name
 	var rest = req.body.restaurant
-	var user = req.headers.user
+	var user = req.headers.user || req.cookies.user
 
 	if (item == undefined || rest == undefined) {
 		res.status(400)
@@ -453,7 +453,7 @@ app.post("/item/", function(req, res) {
 
 app.get("/items/:RSTR", function(req, res){
 	var items = req.params.RSTR;
-	var user  = req.headers.user;
+	var user  = req.headers.user || req.cookies.user;
 
 	if(items === undefined){
 		res.status(400).send({error: "Please Pass 'restaurant'"});
@@ -492,7 +492,7 @@ app.put("/rating", function(req, res){
 	var rstId = req.body.restaurant;
 	var itmId = req.body.item;
 	var rating = req.body.rating;
-	var user = req.headers.user;
+	var user = req.headers.user || req.cookies.user;
 
 	if(itmId === undefined || rating === undefined){
 		res.status(400).send({error: "Please Provide rating and item"});
@@ -505,7 +505,7 @@ app.put("/rating", function(req, res){
 			return Promise.resolve()
 		}
 		var page = {
-			user: req.headers.user,
+			user: req.headers.user || req.cookies.user,
 			item: db.ObjectId(itmId),
 			rating: rating,
 		}
