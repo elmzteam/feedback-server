@@ -13,7 +13,8 @@ var PORT			= nconf.get("port") || 8080;						// The socket on which to run the s
 // Express imports and server setup
 var express			= require("express");
 var app				= express();
-
+var cookieParser                = require('cookie-parser')
+app.use(cookieParser())
 
 // Node imports
 var crypto			= require("crypto");
@@ -132,6 +133,7 @@ app.post("/login", function(req, res) {
 		return;
 	}
 
+	res.cookie("user", username)
 	db.find("users", {username: username, password: hash(pass)}).then(function(doc) {
 		if (!doc || !doc[0]) {
 			res.status(401)
@@ -143,6 +145,7 @@ app.post("/login", function(req, res) {
 					session: bytes,
 				}).then(function() {
 					res.status(201)
+					res.cookie("session", bytes)
 					res.send({
 						session: bytes
 					})
@@ -160,7 +163,10 @@ app.post("/login", function(req, res) {
 app.use(function(req, res, next) {
 	var user = req.headers.user
 	var session = req.headers.session
-	verify(session, user).then(function() {
+	var csession = req.cookies.session
+	var cuser = req.cookies.user
+	console.log(req.cookies)
+	verify(session || csession, user || cuser).then(function() {
 		next()
 	}).catch(function(err) {
 		if (err) {
@@ -418,7 +424,7 @@ app.put("/rating", function(req, res){
 		})
 	}).then((function (user) {
 		return function() {
-			//return nn.train(user)
+			return nn.train(user)
 		}
 	})(user)).catch(function() {
 		res.status(500)

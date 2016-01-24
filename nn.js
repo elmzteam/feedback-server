@@ -19,24 +19,22 @@ var NN = function(db) {
 NN.prototype = {
 	getNet: function(user) {
 		var that = this
-		return new Promise((function(that) {
-			return function(resolve, reject) {
-				that.db.brains.findOne({user: user}, function(err, doc) {
-					if (err) {
-						reject(err)
-					} else if (!doc || doc.length == 0) {
-						resolve(new brain.NeuralNetwork())
-					} else {
-						resolve(new brain.NeuralNetwork().fromJSON(doc.brain))
-					}
-				})
-			}
-		})(that))
+		return new closedPromise(that, user, function(resolve, reject, that, user) {
+			that.db.brains.find({user: user}, function(err, doc) {
+				if (err) {
+					reject(err)
+				} else if (!doc || doc.length == 0) {
+					resolve(new brain.NeuralNetwork())
+				} else {
+					resolve(new brain.NeuralNetwork().fromJSON(doc[0].brain))
+				}
+			})
+		})
 	},
 	saveNet: function(user, net) {
-		console.log(user)
-		return new Promise(function(resolve, reject) {
-			this.db.brains.update({user: user}, {user: user, brain: net.toJSON()}, {upsert: true}, function(err) {
+		var that = this
+		return new closedPromise(that, user, net, function(resolve, reject, that, user, net) {
+			that.db.brains.update({user: user}, {user: user, brain: net.toJSON()}, {upsert: true}, function(err) {
 				if (err) {
 					reject(err)
 				} else {
@@ -46,8 +44,9 @@ NN.prototype = {
 		})
 	},
 	getIOPair: function(item, pref) {
-		return closedPromise(item, pref, function(resolve, reject, item, pref) {
-			db.items.findOne({_id: item}, function(err, doc) {
+		var that = this
+		return closedPromise(item, pref, that, function(resolve, reject, item, pref, that) {
+			that.db.items.findOne({_id: item}, function(err, doc) {
 				if (err) {
 					reject(err)
 					return
@@ -60,6 +59,7 @@ NN.prototype = {
 		return this.getNet(user).then((function(user,values) { 
 			return function(net) {
 				for (var i = 0; i < values.length; i++) {
+					console.log(net.run(values[i].tastes).pref)
 					values[i].preference = net.run(values[i].tastes).pref
 				}
 				return Promise.resolve(values)
@@ -78,17 +78,17 @@ NN.prototype = {
 				for (var id = 0; id < docs.length; id++) {
 					all.push(that.getIOPair(docs[id].item, docs[id].pref))
 				}
+				return Promise.all(all).then((function(that, user) {
+					return function(data) {
+						return that.getNet(user).then((function(data, that, user) {
+							return function(net) {
+								net.train(data)
+								return that.saveNet(user, net)
+							}
+						})(data, that, user))
+					}
+				})(that, user))
 			})
-			return Promise.all(all).then((function(that, user) {
-				return function(data) {
-					return that.getNet(user).then((function(data, that, user) {
-						return function(net) {
-							net.train(data)
-							return that.saveNet(user, net)
-						}
-					})(data, that, user))
-				}
-			})(that, user))
 		})
 	}
 }
