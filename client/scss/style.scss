@@ -317,7 +317,7 @@ html#app {
 				padding: 1em;
 				background: #3F51B5;
 				color: #FFFFFF;
-				
+
 				.preview-image {
 					border-radius: 2px;
 					width: 20ch;
@@ -326,12 +326,12 @@ html#app {
 					background-size: 125% 125%;
 					background-position: center center;
 				}
-				
+
 				.categories {
 					font-size: .8em;
 					margin-bottom: .6em;
 				}
-				
+
 				.address {
 					font-size: .8em;
 				}
@@ -346,7 +346,7 @@ html#app {
 					align-items: baseline;
 					position: relative;
 					padding-left: 1em;
-					
+
 					.preference-bar {
 						position: absolute;
 						top: 0px;
@@ -381,5 +381,80 @@ html#app {
 		&.active #menu {
 			@extend feedback-dialog.active;
 		}
+	}
+}
+
+#welcome-message {
+	margin: 1em;
+	font-size: 1.4em;
+}
+
+#item-setup-list {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: center;
+	margin: 0px 1em;
+
+	input[type=submit] {
+		@include z-depth(1);
+		
+		margin: .4em .6em;
+		height: 2em;
+		font-size: 1.4em;
+		border-radius: 2px;
+		flex-grow: 1;
+	}
+
+	.item {
+		@include z-depth(1);
+
+		margin: .4em .6em;
+		background: #FFFFFF;
+		padding: .2em;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border-radius: 2px;
+		flex-grow: 1;
+
+		.name {
+			font-size: 1.4em;
+		}
+
+		.buttons {
+			display: flex;
+			flex-direction: row;
+			justify-content: center;
+
+			.material-icons {
+				margin: 0px .2em;
+				padding: 0px .2em;
+				font-size: 18px;
+				cursor: pointer;
+				border-radius: 1em;
+
+				&.selected.up {
+					color: #4CAF50;
+					background: #C8E6C9;
+				}
+
+				&.selected.neut {
+					color: #FFC107;
+					background: #FFECB3;
+				}
+
+				&.selected.down {
+					color: #F44336;
+					background: #FFCDD2;
+				}
+			}
+		}
+	}
+}
+
+html.setup {
+	main {
+		flex-direction: column;
 	}
 }

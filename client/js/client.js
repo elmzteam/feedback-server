@@ -87,7 +87,7 @@ $(document).ready(function(){
 			.then(function(data){
 			Cookies.set("user", $(e.target).find(".username").val());
 			Cookies.set("session", data.session);
-			window.location = "/app.html";
+			window.location = "/setup.html";
 		})
 			.catch(function(err){
 			console.error("If only we had a good user alert system.");
