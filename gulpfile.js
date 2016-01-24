@@ -11,9 +11,10 @@ gulp.task("watch", function(){
 	gulp.watch(path.join(SRC, "scss/**/*"), ["sass"])
 	gulp.watch(path.join(SRC, "js/**/*"), ["js"])
 	gulp.watch(path.join(SRC, "images/**/*"), ["images"])
+	gulp.watch(path.join(SRC, "html/**/*"), ["html"])
 })
 
-gulp.task("build", ["sass", "js", "images"])
+gulp.task("build", ["sass", "js", "images", "html"])
 
 gulp.task("sass", function() {
 	return gulp.src(path.join(SRC, "scss/{style.scss,admin.scss}"))
@@ -30,6 +31,11 @@ gulp.task("js", function() {
 	return gulp.src(path.join(SRC, "js/*.*"))
 		.pipe($.uglify())
 		.pipe(gulp.dest(path.join(BUILD, "js")))
+})
+
+gulp.task("html", function() {
+	return gulp.src(path.join(SRC, "html/*.*"))
+		.pipe(gulp.dest(path.join(BUILD)))
 })
 
 gulp.task("images", function() {

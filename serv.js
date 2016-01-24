@@ -84,6 +84,10 @@ if(nconf.get("YUMMLY_APP_ID") && nconf.get("YUMMLY_API_KEY")){
 app.use(require("body-parser").json());
 var http = require("http").Server(app);
 
+// Web interface
+
+app.use(express.static("build"));
+
 // API methods
 
 app.post("/register", function(req, res) {
