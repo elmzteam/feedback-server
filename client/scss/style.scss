@@ -94,7 +94,8 @@ main {
 		}
 
 		&#how {
-			background: #1E88E5;
+			background: #1E88E5 url(/images/small-steps.png);
+			background-blend-mode: multiply;
 
 			#content {
 				position: absolute;
@@ -107,7 +108,7 @@ main {
 				text-align: center;
 			}
 
-			#register {
+			#sign-me-up {
 				@extend .rounded-button;
 
 				color: #FFFFFF;
@@ -132,21 +133,40 @@ feedback-dialog {
 	@include z-depth(2);
 	
 	background: #FFFFFF;
-	position: absolute;
+	position: fixed;
 	z-index: 8;
-	padding: 1em;
+	padding: .6em;
 	border-radius: 2px;
+	font-size: 1.4em;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 400ms;
+	
+	&.active {
+		pointer-events: all;
+		opacity: 1;
+	}
+	
+	h2 {
+		text-align: center;
+		margin: 0px auto .2em;
+	}
 	
 	input {
 		font-size: inherit;
 	}
 	
-	&#login {
+	&#login,
+	&#register {
 		display: flex;
 		flex-direction: column;
-		font-size: 1em;
-		right: .4em;
-		top: 5.4em;
+		right: .6rem;
+		top: 5.4rem;
+		
+		form {
+			display: flex;
+			flex-direction: column;
+		}
 	}
 }
 
@@ -157,8 +177,19 @@ input[type=password] {
 	outline: none;
 	font-family: Dosis;
 	transition: border-bottom 200ms;
+	margin-bottom: .4em;
+	padding: 0px .2em;
 	
 	&:focus {
 		border-bottom: 1px solid #444444;
 	}
+}
+
+input[type=submit] {
+	border: 0px;
+	color: #FFFFFF;
+	background: #388E3C;
+	margin: .2em 0px;
+	outline: none;
+	cursor: pointer;
 }

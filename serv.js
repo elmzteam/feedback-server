@@ -137,7 +137,6 @@ app.post("/login", function(req, res) {
 		return;
 	}
 
-	res.cookie("user", username)
 	db.find("users", {username: username, password: hash(pass)}).then(function(doc) {
 		if (!doc || !doc[0]) {
 			res.status(401)
@@ -149,6 +148,7 @@ app.post("/login", function(req, res) {
 					session: bytes,
 				}).then(function() {
 					res.status(201)
+					res.cookie("user", username)
 					res.cookie("session", bytes)
 					res.send({
 						session: bytes
@@ -317,7 +317,7 @@ app.get("/restaurants", function(req, res){
 					var added = false
 					for(var j = 0; j < menus.length; j++){
 						if(menus[j].menus.length > 0 && geolib.getDistance(menus[j].location.geo.coordinates, data[i].location) <= 40){
-							
+
 							all.push((function(data, i) {
 								return insertMenu(data[i], menus[j].menus[0]).then(function(ids) {
 									data[i].menu = ids ;//menus[j].menus[0];
@@ -371,7 +371,7 @@ app.get("/items/:RSTR", function(req, res){
 		res.status(400).send({error: "Please Pass 'restaurant'"});
 		return;
 	}
-	
+
 	db.findOne("restaurants", {_id: db.ObjectId(items)}).then(function(doc) {
 		if (!doc) {
 			res.status(404)
