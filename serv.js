@@ -274,23 +274,10 @@ app.get("/restaurants", function(req, res){
 			});
 
 			var locuData = yelpData.then(function(data){
-				console.log(data)
-				return locuSearch({
-					fields: ["name", "menus", "location"],
-					venue_queries: 
-					[
-						{
-							location: {
-								geo: {
-									"$in_lat_lng_radius": [lat, lon, data[data.length-1].distance + 100]
-								}
-							},
-							menus: {
-								"$present": true
-							}
-						}
-					]
-				});
+				var rad = [lat, lon, data[data.length-1].distance + 100]
+				return locuLookup(rad).then(function(data) {
+					return Promise.resolve(data)
+				})
 			}).then(function(data){
 				return data.venues;
 			});
@@ -334,6 +321,7 @@ app.get("/restaurants", function(req, res){
 					data[i].menu = [];
 					var added = false
 					for(var j = 0; j < menus.length; j++){
+						if (menus[j] === false) continue
 						var titleWords = menus[j].name.split(" ");
 						var ignoreWords = ["The", "the", "a", "A", "of", "Of"];
 						var cntOverlap = 0;
@@ -366,6 +354,7 @@ app.get("/restaurants", function(req, res){
 								})
 							})(data, i))
 							added = true
+							menus[j] = false
 							break;
 						}
 					}
@@ -377,6 +366,27 @@ app.get("/restaurants", function(req, res){
 						})(data,i))
 					}
 				}
+				/**	
+				for (var i = 0; i < menus.length; i++) {
+					if (menus[i] == false) continue
+					menus[i].location = menus[i].location.geo.coordinates
+					menus[i].images = (images[i] ? images[i].slice(0, 6) : []);
+					all.push((function(data, i) {
+						return insertMenu(data[i], data[i].menus[0]).then(function(ids) {
+							data[i].menu = ids ;//menus[j].menus[0];
+							return Promise.resolve(data[i]);
+						}).then(function(obj) {
+							return Promise.resolve()
+							return cache(obj).then(function() {
+								return Promise.resolve(data[i])
+							})
+						}).catch(function(err) {
+							logger.error(err.stack)
+						})
+					})(menus, i))
+				}**/
+					
+					
 
 				db.insert("queries", {
 					timestamp: Date.now(), 
@@ -421,7 +431,6 @@ app.post("/item/", function(req, res) {
 				res.status(200)
 				res.send(doc)
 				return db.insert("items", doc).next(function(doc) {
-					console.log(doc)
 					return nn.process(user, doc).then(function(docs) {
 						res.status(200)
 						res.send(docs[0])
@@ -459,7 +468,6 @@ app.get("/items/:RSTR", function(req, res){
 			res.send([])
 			return Promise.resolve()
 		}
-		console.log(doc.menu)
 		return db.raw.items.find( {_id: {$in: doc.menu}}, { ingredients: 0}).then(function(docs) {
 			return nn.process(user, docs).then(function(docs) {
 				return Promise.all(docs.map(function(e) {
@@ -488,8 +496,6 @@ app.put("/rating", function(req, res){
 		return;
 	}
 
-	console.log(itmId)
-	console.log(rstId)
 	db.find("items",{_id: db.ObjectId(itmId)}).then(function(doc) {
 		if (!doc) {
 			res.status(404).send({error: "Please specify valid item"})
@@ -562,6 +568,40 @@ var insertMenu = function(rest, menu) {
 	}
 	return Promise.all(out);
 }
+
+var locuLookup = function(rad) {
+	return locuSearch({
+		//fields: ["name", "menus", "location"],
+		fields : [
+			"locu_id",
+			"name",
+			"description",
+			"website_url",
+			"location",
+			"contact",
+			"categories",
+			"menus",
+			"open_hours",
+			"extended",
+			"description",
+			"short_name"
+		],
+		venue_queries: 
+		[
+			{
+				location: {
+					geo: {
+						"$in_lat_lng_radius": rad 
+					}
+				},
+				menus: {
+					"$present": true
+				},
+			}
+		]
+	});
+}
+
 
 var fetchLike = function(item, user) {
 	return db.find("prefs", {item: item._id, user: user}).then(function(docs) {
